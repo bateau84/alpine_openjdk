@@ -3,4 +3,4 @@ set -e
 set -x
 
 ## Add openjdk 8
-apk --no-cache add openjdk8 
+apk --no-cache add openjdk${OPENJDK_VERSION} 
