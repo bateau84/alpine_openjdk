@@ -1,6 +1,6 @@
 FROM bateau/alpine_baseimage:latest
 
-ENV OPENJDK_VERSION="8"
+ARG OPENJDK_VERSION="8"
 
 ADD . /build
 
