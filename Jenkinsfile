@@ -1,3 +1,4 @@
+#!/usr/bin/env groovy
 pipeline {
     agent any
 
@@ -8,12 +9,13 @@ pipeline {
     environment {
         DOCKER_REGISTRY = 'index.docker.io/'
         DOCKER_REPOSITORY = 'bateau'
-        DOCKER_IMAGE_NAME = 'alpine_openjdk'
+        DOCKER_IMAGE_NAME = 'alpine_baseimage'
         DOCKER_ARGS = '--no-cache --squash '
+        RELEASE_FILE = 'releases'
         GIT_COMMIT_ID = sh(returnStdout: true, script: "git rev-parse --short HEAD").trim()
         GIT_BRANCH = sh(returnStdout: true, script: "git rev-parse --abbrev-ref HEAD").replace(" ", "-").replace("/", "-").replace(".", "-")
     }
-
+    
     stages {
         stage('Prepare') {
             steps {
@@ -30,10 +32,9 @@ pipeline {
             }
             steps {
                 script {
-                    def baseimage = docker.build("${env.DOCKER_REGISTRY}${env.DOCKER_REPOSITORY}/${env.DOCKER_IMAGE_NAME}:${env.BRANCH_NAME}-${env.BUILD_ID}", "${env.DOCKER_ARGS}.")
+                    def baseimage = docker.build("${env.DOCKER_REGISTRY}${env.DOCKER_REPOSITORY}/${env.DOCKER_IMAGE_NAME}:${env.GIT_BRANCH}-${env.GIT_COMMIT_ID}", "${env.DOCKER_ARGS}.")
                     baseimage.push()
                     env.imageName = baseimage.imageName()
-
                 }
             }
         }
@@ -42,12 +43,20 @@ pipeline {
             when {
                 branch 'master'
             }
+
             steps {
                 script {
-                    def baseimage = docker.build("${env.DOCKER_REGISTRY}${env.DOCKER_REPOSITORY}/${env.DOCKER_IMAGE_NAME}:${env.BUILD_ID}", "${env.DOCKER_ARGS}.")
-                    baseimage.push()
-                    baseimage.push('latest')
-                    env.imageName = baseimage.imageName()
+                    def LINES = new File(env.WORKSPACE, env.RELEASE_FILE).readLines()
+                    for(int i = 0; i < LINES.size(); i++) {    
+                        echo "[ "+LINES[i]+" ]"
+
+                        def baseimage = docker.build("${env.DOCKER_REGISTRY}${env.DOCKER_REPOSITORY}/${env.DOCKER_IMAGE_NAME}:${LINES[i]}", "--build-arg OPENJDK_VERSION=${LINES[i]} ${env.DOCKER_ARGS}.")
+                        baseimage.push()
+
+                        if (i == 0){
+                            baseimage.push("latest")
+                        }
+                    }
                 }
             }
         }
@@ -55,9 +64,6 @@ pipeline {
     post {
         always {
             deleteDir()
-        }
-        success {
-            sh("docker rmi -f ${imageName}")
         }
     }
 }
