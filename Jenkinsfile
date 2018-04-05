@@ -1,30 +1,55 @@
 pipeline {
     agent any
 
+    triggers {
+        cron('H H 1,15,30 1-11 *')
+    }
+
+    environment {
+        DOCKER_REGISTRY = 'index.docker.io/'
+        DOCKER_REPOSITORY = 'bateau'
+        DOCKER_IMAGE_NAME = 'alpine_openjdk'
+        DOCKER_ARGS = '--no-cache --squash '
+    }
+
     stages {
-        stage('Checkout') {
+        stage('Prepare') {
             steps {
+                echo 'Preparing the build environment'
                 checkout scm
             }
         }
-        stage('Build image') {
+
+        stage('Branch Build') {
+            when {
+                not {
+                    branch 'master'
+                }
+            }
             steps {
-                sh 'docker build --squash -t bateau/alpine_openjdk:initial .'
+                script {
+                    def baseimage = docker.build("${env.DOCKER_REGISTRY}${env.DOCKER_REPOSITORY}/${env.DOCKER_IMAGE_NAME}:${env.BRANCH_NAME}-${env.BUILD_ID}", "${env.DOCKER_ARGS}.")
+                    baseimage.push()
+                }
             }
         }
-        stage('Retag') {
+
+        stage('Master Build') {
+            when {
+                branch 'master'
+            }
             steps {
-                sh 'docker tag bateau/alpine_baseimage:initial bateau/alpine_baseimage:$BUILD_ID'
-		sh 'docker tag bateau/alpine_baseimage:initial bateau/alpine_baseimage:8'
-		sh 'docker tag bateau/alpine_baseimage:initial bateau/alpine_baseimage:latest'
+                script {
+                    def baseimage = docker.build("${env.DOCKER_REGISTRY}${env.DOCKER_REPOSITORY}/${env.DOCKER_IMAGE_NAME}:${env.BUILD_ID}", "${env.DOCKER_ARGS}.")
+                    baseimage.push()
+                    baseimage.push('latest')
+                }
             }
         }
-        stage('Push') {
-            steps {
-                sh 'docker push bateau/alpine_baseimage:$BUILD_ID'
-		sh 'docker push bateau/alpine_baseimage:8'
-                sh 'docker push bateau/alpine_baseimage:latest'
-            }
+    }
+    post {
+        always {
+            deleteDir()
         }
     }
 }
