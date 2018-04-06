@@ -9,7 +9,7 @@ pipeline {
     environment {
         DOCKER_REGISTRY = 'index.docker.io/'
         DOCKER_REPOSITORY = 'bateau'
-        DOCKER_IMAGE_NAME = 'alpine_baseimage'
+        DOCKER_IMAGE_NAME = 'alpine_openjdk'
         DOCKER_ARGS = '--no-cache --squash '
         RELEASE_FILE = 'releases'
         GIT_COMMIT_ID = sh(returnStdout: true, script: "git rev-parse --short HEAD").trim()
