@@ -2,8 +2,13 @@
 pipeline {
     agent any
 
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '5'))
+    }
+
     triggers {
         cron('H H 1,15,30 1-11 *')
+        upstream(upstreamProjects: 'alpine_baseimage/master', threshold: hudson.model.Result.SUCCESS)
     }
 
     environment {
